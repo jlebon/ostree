@@ -1,99 +1,12 @@
 branches:
-    - master
-    - auto
-    - try
+  - tmp☃
 
-required: true
+env:
+  snowman: ☃
 
 container:
-    image: projectatomic/ostree-tester
-
-packages:
-  - libasan
-
-env:
-    CFLAGS: '-fsanitize=undefined -fsanitize-undefined-trap-on-error -fsanitize=address'
-    ASAN_OPTIONS: 'detect_leaks=0'  # Right now we're not fully clean, but this gets us use-after-free etc
-    # TODO when we're doing leak checks: G_SLICE: "always-malloc"
-
-build:
-    config-opts: >
-      --prefix=/usr
-      --libdir=/usr/lib64
-      --enable-installed-tests
-      --enable-gtk-doc
+    image: fedora:25
 
 tests:
-    - make syntax-check
-    - make check
-    - gnome-desktop-testing-runner -p 0 ostree
-
-timeout: 30m
-
-artifacts:
-    - test-suite.log
-
----
-
-inherit: true
-required: true
-
-context: Clang
-
-env:
-    CC: 'clang'
-    CFLAGS: '-Werror=unused-variable'
-
-tests:
-artifacts:
-
-
----
-
-inherit: true
-
-context: f25-rust
-
-packages:
-  - cargo
-
-build:
-    config-opts: >
-      --prefix=/usr
-      --libdir=/usr/lib64
-      --enable-installed-tests
-      --enable-gtk-doc
-      --enable-rust
-
-env:
-    CC: 'gcc'
-
-tests:
-    - make check TESTS=tests/test-rollsum
-
----
-
-inherit: true
-required: true
-
-context: curl-openssl
-
-packages:
-  - pkgconfig(libcurl)
-  - pkgconfig(openssl)
-
-build:
-    config-opts: >
-      --prefix=/usr
-      --libdir=/usr/lib64
-      --enable-installed-tests
-      --enable-gtk-doc
-      --with-curl
-      --with-openssl
-
-tests:
-  - make check
-  - gnome-desktop-testing-runner -p 0 ostree
-
-artifacts:
-  - test-suite.log
+  - echo $snowman
+  - echo ☃
