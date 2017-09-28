@@ -72,6 +72,23 @@ ot_test_setup_repo (GCancellable *cancellable,
   return g_steal_pointer (&ret_repo);
 }
 
+gboolean
+ot_check_for_overlay (gboolean  *on_overlay,
+                      GError   **error)
+{
+  /* Keep this in sync with the overlayfs bits in libtest.sh */
+  struct statfs stbuf;
+  const char *pwd = g_getenv ("PWD");
+  g_assert (pwd);
+  if (statfs (pwd, &stbuf) < 0)
+    return glnx_throw_errno (error);
+#ifndef OVERLAYFS_SUPER_MAGIC
+#define OVERLAYFS_SUPER_MAGIC 0x794c7630
+#endif
+  *on_overlay = (stbuf.f_type == OVERLAYFS_SUPER_MAGIC);
+  return TRUE;
+}
+
 OstreeSysroot *
 ot_test_setup_sysroot (GCancellable *cancellable,
                        GError **error)
@@ -79,22 +96,20 @@ ot_test_setup_sysroot (GCancellable *cancellable,
   if (!ot_test_run_libtest ("setup_os_repository \"archive\" \"syslinux\"", error))
     return FALSE;
 
-  struct statfs stbuf;
-  { g_autoptr(GString) buf = g_string_new ("mutable-deployments");
-    if (statfs ("/", &stbuf) < 0)
-      return glnx_null_throw_errno (error);
-    /* Keep this in sync with the overlayfs bits in libtest.sh */
-#ifndef OVERLAYFS_SUPER_MAGIC
-#define OVERLAYFS_SUPER_MAGIC 0x794c7630
-#endif
-    if (stbuf.f_type == OVERLAYFS_SUPER_MAGIC)
-      {
-        g_print ("libostreetest: detected overlayfs\n");
-        g_string_append (buf, ",no-xattrs");
-      }
-    /* Make sure deployments are mutable */
-    g_setenv ("OSTREE_SYSROOT_DEBUG", buf->str, TRUE);
-  }
+  /* Keep this in sync with the overlayfs bits in libtest.sh */
+  gboolean on_overlay;
+  if (!ot_check_for_overlay (&on_overlay, error))
+    return FALSE;
+
+  g_autoptr(GString) buf = g_string_new ("mutable-deployments");
+  if (on_overlay)
+    {
+      g_print ("libostreetest: detected overlayfs\n");
+      g_string_append (buf, ",no-xattrs");
+    }
+
+  /* Make sure deployments are mutable */
+  g_setenv ("OSTREE_SYSROOT_DEBUG", buf->str, TRUE);
 
   g_autoptr(GFile) sysroot_path = g_file_new_for_path ("sysroot");
   return ostree_sysroot_new (sysroot_path);
