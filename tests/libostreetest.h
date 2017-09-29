@@ -31,8 +31,11 @@ gboolean ot_test_run_libtest (const char *cmd, GError **error);
 OstreeRepo *ot_test_setup_repo (GCancellable *cancellable,
                                 GError **error);
 
-gboolean ot_check_for_overlay (gboolean  *on_overlay,
-                               GError   **error);
+gboolean ot_check_relabeling (gboolean *can_relabel,
+                              GError  **error);
+
+gboolean ot_check_user_xattrs (gboolean *has_user_xattrs,
+                               GError  **error);
 
 OstreeSysroot *ot_test_setup_sysroot (GCancellable *cancellable,
                                       GError **error);

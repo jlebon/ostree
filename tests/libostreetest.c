@@ -72,20 +72,65 @@ ot_test_setup_repo (GCancellable *cancellable,
   return g_steal_pointer (&ret_repo);
 }
 
+/* Determine whether we're able to relabel files. Needed for bare tests. */
 gboolean
-ot_check_for_overlay (gboolean  *on_overlay,
-                      GError   **error)
+ot_check_relabeling (gboolean *can_relabel,
+                     GError  **error)
 {
-  /* Keep this in sync with the overlayfs bits in libtest.sh */
-  struct statfs stbuf;
-  const char *pwd = g_getenv ("PWD");
-  g_assert (pwd);
-  if (statfs (pwd, &stbuf) < 0)
-    return glnx_throw_errno (error);
-#ifndef OVERLAYFS_SUPER_MAGIC
-#define OVERLAYFS_SUPER_MAGIC 0x794c7630
-#endif
-  *on_overlay = (stbuf.f_type == OVERLAYFS_SUPER_MAGIC);
+  g_auto(GLnxTmpfile) tmpf = { 0, };
+  if (!glnx_open_tmpfile_linkable_at (AT_FDCWD, ".", O_RDWR | O_CLOEXEC, &tmpf, error))
+    return FALSE;
+
+  g_autoptr(GError) local_error = NULL;
+  g_autoptr(GBytes) bytes = glnx_fgetxattr_bytes (tmpf.fd, "security.selinux", &local_error);
+  if (!bytes)
+    {
+      /* libglnx preserves errno */
+      if (G_IN_SET (errno, ENOTSUP, ENODATA))
+        {
+          *can_relabel = FALSE;
+          return TRUE;
+        }
+      g_propagate_error (error, g_steal_pointer (&local_error));
+      return FALSE;
+    }
+
+  gsize data_len;
+  const guint8 *data = g_bytes_get_data (bytes, &data_len);
+  if (fsetxattr (tmpf.fd, "security.selinux", data, data_len, 0) < 0)
+    {
+      if (errno == ENOTSUP)
+        {
+          *can_relabel = FALSE;
+          return TRUE;
+        }
+      return glnx_throw_errno_prefix (error, "fsetxattr");
+    }
+
+  *can_relabel = TRUE;
+  return TRUE;
+}
+
+/* Determine whether the filesystem supports getting/setting user xattrs. */
+gboolean
+ot_check_user_xattrs (gboolean *has_user_xattrs,
+                      GError  **error)
+{
+  g_auto(GLnxTmpfile) tmpf = { 0, };
+  if (!glnx_open_tmpfile_linkable_at (AT_FDCWD, ".", O_RDWR | O_CLOEXEC, &tmpf, error))
+    return FALSE;
+
+  if (fsetxattr (tmpf.fd, "user.test", "novalue", strlen ("novalue"), 0) < 0)
+    {
+      if (errno == ENOTSUP)
+        {
+          *has_user_xattrs = FALSE;
+          return TRUE;
+        }
+      return glnx_throw_errno_prefix (error, "fsetxattr");
+    }
+
+  *has_user_xattrs = TRUE;
   return TRUE;
 }
 
@@ -96,15 +141,14 @@ ot_test_setup_sysroot (GCancellable *cancellable,
   if (!ot_test_run_libtest ("setup_os_repository \"archive\" \"syslinux\"", error))
     return FALSE;
 
-  /* Keep this in sync with the overlayfs bits in libtest.sh */
-  gboolean on_overlay;
-  if (!ot_check_for_overlay (&on_overlay, error))
-    return FALSE;
-
   g_autoptr(GString) buf = g_string_new ("mutable-deployments");
-  if (on_overlay)
+
+  gboolean can_relabel;
+  if (!ot_check_user_xattrs (&can_relabel, error))
+    return FALSE;
+  if (!can_relabel)
     {
-      g_print ("libostreetest: detected overlayfs\n");
+      g_print ("libostreetest: can't relabel, turning off xattrs\n");
       g_string_append (buf, ",no-xattrs");
     }
 
