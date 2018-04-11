@@ -1,37 +1,29 @@
-# https://fedoraproject.org/wiki/CI/Tests
-branches:
-    - master
-    - auto
-    - try
-
-context: FAH27-insttests
-required: true
-
-# FIXME; temporary workaround
-# https://github.com/ostreedev/ostree/pull/1513#issuecomment-378784162
-host:
-  distro: fedora/27/atomic
-  specs:
-    ram: 4096
-#container:
-#  image: registry.fedoraproject.org/fedora:27
-
-tests:
-  - cd /etc/yum.repos.d/ && curl -L -O https://copr.fedorainfracloud.org/coprs/walters/oci-kvm-hook/repo/fedora-27/walters-oci-kvm-hook-fedora-27.repo
-  - rpm-ostree install oci-kvm-hook && rpm-ostree ex livefs
-  - docker run --device /dev/kvm --rm -v $(pwd):/srv/code:z registry.fedoraproject.org/fedora:27 /bin/sh -c "cd /srv/code && ./ci/fah27-insttests.sh"
-
-artifacts:
-  - tests/installed/artifacts/
-
----
+#context: FAH27-insttests
+#required: true
+#
+## FIXME; temporary workaround
+## https://github.com/ostreedev/ostree/pull/1513#issuecomment-378784162
+#host:
+#  distro: fedora/27/atomic
+#  specs:
+#    ram: 4096
+##container:
+##  image: registry.fedoraproject.org/fedora:27
+#
+#tests:
+#  - cd /etc/yum.repos.d/ && curl -L -O https://copr.fedorainfracloud.org/coprs/walters/oci-kvm-hook/repo/fedora-27/walters-oci-kvm-hook-fedora-27.repo
+#  - rpm-ostree install oci-kvm-hook && rpm-ostree ex livefs
+#  - docker run --device /dev/kvm --rm -v $(pwd):/srv/code:z registry.fedoraproject.org/fedora:27 /bin/sh -c "cd /srv/code && ./ci/fah27-insttests.sh"
+#
+#artifacts:
+#  - tests/installed/artifacts/
+#
+#---
 
 # This suite skips the RPMs and does the build+unit tests in a container
 inherit: false
 branches:
     - master
-    - auto
-    - try
 container:
   image: registry.fedoraproject.org/fedora:27
 context: f27-primary
@@ -54,146 +46,146 @@ artifacts:
   - config.log
   - gdtr-results
 
----
-# And now the contexts below here are variant container builds
-
-context: f27-rust
-inherit: true
-container:
-    image: registry.fedoraproject.org/fedora:27
-env:
-  CONFIGOPTS: '--enable-rust'
-  CI_PKGS: cargo
-
-tests:
-    - ci/build.sh
-    - make check TESTS=tests/test-rollsum
-
----
-
-context: f27-gnutls
-inherit: true
-container:
-    image: registry.fedoraproject.org/fedora:27
-env:
-  CONFIGOPTS: '--with-crypto=gnutls'
-  CI_PKGS: pkgconfig(gnutls)
-
-tests:
-    - ci/build.sh
-    - make check TESTS=tests/test-basic.sh
-
----
-
-inherit: true
-
-context: f27-experimental-api
-env:
-  CONFIGOPTS: '--enable-experimental-api'
-
-tests:
-  - ci/build-check.sh
-
----
-
-inherit: true
-
-context: f27-minimal
-env:
-  CONFIGOPTS: '--without-curl --without-soup --disable-gtk-doc --disable-man
-   --disable-rust --without-libarchive --without-selinux --without-smack
-   --without-openssl --without-avahi --without-libmount --disable-rofiles-fuse
-   --disable-experimental-api'
-
-tests:
-  - ci/build.sh
-
----
-
-inherit: true
-required: true
-
-context: f27-libsoup
-
-env:
-  CONFIGOPTS: "--without-curl --without-openssl --with-libsoup"
-
-tests:
-  - ci/build-check.sh
-
----
-
-inherit: true
-required: true
-
-context: f27-introspection-tests
-
-env:
-    # ASAN conflicts with introspection testing;
-    # See https://github.com/ostreedev/ostree/issues/1014
-    INSTALLED_TESTS_PATTERN: "libostree/test-sizes.js libostree/test-sysroot.js libostree/test-core.js"
-
-tests:
-  - ci/build-check.sh
-
----
-
-# Reset inheritance for non-variant builds
-inherit: false
-branches:
-    - master
-    - auto
-    - try
-
-context: f27-flatpak
-required: true
-
-# This test case wants an "unprivileged container with bubblewrap",
-# which we don't have right now; so just provision a VM and do a
-# docker --privileged run.
-host:
-  distro: fedora/27/atomic
-  specs:
-    ram: 4096  # build-bundle is a static delta, which needs RAM right now
-
-tests:
-  - docker run --rm --privileged -v $(pwd):/srv/code registry.fedoraproject.org/fedora:27 /bin/sh -c "cd /srv/code && ./ci/flatpak.sh"
-
-artifacts:
-  - test-suite.log
-
----
-
-# Run rpm-ostree's vmcheck.  This is a temporary hack until
-# we share more code. https://github.com/projectatomic/rpm-ostree/issues/662
-inherit: false
-
-branches:
-    - master
-    - auto
-    - try
-
-context: f27-rpmostree
-required: true
-
-cluster:
-  hosts:
-    - name: vmcheck
-      distro: fedora/27/atomic
-  container:
-    image: registry.fedoraproject.org/fedora:27
-
-env:
-  HOSTS: vmcheck
-  # This should roughly match the Fedora spec file, although right now we don't
-  # explicitly enable gtk-doc because we don't really need it
-  CONFIGOPTS: '--with-selinux --with-dracut=yesbutnoconf --with-curl --with-openssl'
-
-tests:
-  - ./ci/rpmostree.sh
-
-artifacts:
-  - test-suite.log
-  - vmcheck
-
-timeout: 60m
+    #---
+    ## And now the contexts below here are variant container builds
+    #
+    #context: f27-rust
+    #inherit: true
+    #container:
+    #    image: registry.fedoraproject.org/fedora:27
+    #env:
+    #  CONFIGOPTS: '--enable-rust'
+    #  CI_PKGS: cargo
+    #
+    #tests:
+    #    - ci/build.sh
+    #    - make check TESTS=tests/test-rollsum
+    #
+    #---
+    #
+    #context: f27-gnutls
+    #inherit: true
+    #container:
+    #    image: registry.fedoraproject.org/fedora:27
+    #env:
+    #  CONFIGOPTS: '--with-crypto=gnutls'
+    #  CI_PKGS: pkgconfig(gnutls)
+    #
+    #tests:
+    #    - ci/build.sh
+    #    - make check TESTS=tests/test-basic.sh
+    #
+    #---
+    #
+    #inherit: true
+    #
+    #context: f27-experimental-api
+    #env:
+    #  CONFIGOPTS: '--enable-experimental-api'
+    #
+    #tests:
+    #  - ci/build-check.sh
+    #
+    #---
+    #
+    #inherit: true
+    #
+    #context: f27-minimal
+    #env:
+    #  CONFIGOPTS: '--without-curl --without-soup --disable-gtk-doc --disable-man
+    #   --disable-rust --without-libarchive --without-selinux --without-smack
+    #   --without-openssl --without-avahi --without-libmount --disable-rofiles-fuse
+    #   --disable-experimental-api'
+    #
+    #tests:
+    #  - ci/build.sh
+    #
+    #---
+    #
+    #inherit: true
+    #required: true
+    #
+    #context: f27-libsoup
+    #
+    #env:
+    #  CONFIGOPTS: "--without-curl --without-openssl --with-libsoup"
+    #
+    #tests:
+    #  - ci/build-check.sh
+    #
+    #---
+    #
+    #inherit: true
+    #required: true
+    #
+    #context: f27-introspection-tests
+    #
+    #env:
+    #    # ASAN conflicts with introspection testing;
+    #    # See https://github.com/ostreedev/ostree/issues/1014
+    #    INSTALLED_TESTS_PATTERN: "libostree/test-sizes.js libostree/test-sysroot.js libostree/test-core.js"
+    #
+    #tests:
+    #  - ci/build-check.sh
+    #
+    #---
+    #
+    ## Reset inheritance for non-variant builds
+    #inherit: false
+    #branches:
+    #    - master
+    #    - auto
+    #    - try
+    #
+    #context: f27-flatpak
+    #required: true
+    #
+    ## This test case wants an "unprivileged container with bubblewrap",
+    ## which we don't have right now; so just provision a VM and do a
+    ## docker --privileged run.
+    #host:
+    #  distro: fedora/27/atomic
+    #  specs:
+    #    ram: 4096  # build-bundle is a static delta, which needs RAM right now
+    #
+    #tests:
+    #  - docker run --rm --privileged -v $(pwd):/srv/code registry.fedoraproject.org/fedora:27 /bin/sh -c "cd /srv/code && ./ci/flatpak.sh"
+    #
+    #artifacts:
+    #  - test-suite.log
+    #
+    #---
+    #
+    ## Run rpm-ostree's vmcheck.  This is a temporary hack until
+    ## we share more code. https://github.com/projectatomic/rpm-ostree/issues/662
+    #inherit: false
+    #
+    #branches:
+    #    - master
+    #    - auto
+    #    - try
+    #
+    #context: f27-rpmostree
+    #required: true
+    #
+    #cluster:
+    #  hosts:
+    #    - name: vmcheck
+    #      distro: fedora/27/atomic
+    #  container:
+    #    image: registry.fedoraproject.org/fedora:27
+    #
+    #env:
+    #  HOSTS: vmcheck
+    #  # This should roughly match the Fedora spec file, although right now we don't
+    #  # explicitly enable gtk-doc because we don't really need it
+    #  CONFIGOPTS: '--with-selinux --with-dracut=yesbutnoconf --with-curl --with-openssl'
+    #
+    #tests:
+    #  - ./ci/rpmostree.sh
+    #
+    #artifacts:
+    #  - test-suite.log
+    #  - vmcheck
+    #
+    #timeout: 60m
