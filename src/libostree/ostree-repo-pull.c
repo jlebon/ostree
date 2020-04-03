@@ -2424,6 +2424,9 @@ process_one_static_delta (OtPullData                 *pull_data,
                                                                             error))
             return FALSE;
 
+          if (!ostree_repo_mark_commit_partial (pull_data->repo, to_checksum, TRUE, error))
+            return FALSE;
+
           FetchObjectData *fetch_data = g_new0 (FetchObjectData, 1);
           fetch_data->pull_data = pull_data;
           fetch_data->object = ostree_object_name_serialize (to_checksum, OSTREE_OBJECT_TYPE_COMMIT);
