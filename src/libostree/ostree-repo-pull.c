@@ -178,6 +178,7 @@ typedef struct {
   GVariant    *object;
   char        *path;
   gboolean     is_detached_meta;
+  gboolean     is_delta_target_commit_object;
 
   /* Only relevant when is_detached_meta is TRUE.  Controls
    * whether to fetch the primary object after fetching its
@@ -1188,7 +1189,10 @@ on_metadata_written (GObject           *object,
       goto out;
     }
 
-  queue_scan_one_metadata_object_c (pull_data, csum, objtype, fetch_data->path, 0, fetch_data->requested_ref);
+  /* only queue a scan if this wasn't fetched as part of a delta operation since those are
+   * already taken care of */
+  if (!fetch_data->is_delta_target_commit_object)
+    queue_scan_one_metadata_object_c (pull_data, csum, objtype, fetch_data->path, 0, fetch_data->requested_ref);
 
  out:
   g_assert (pull_data->n_outstanding_metadata_write_requests > 0);
@@ -2434,6 +2438,7 @@ process_one_static_delta (OtPullData                 *pull_data,
           fetch_data->object_is_stored = FALSE;
           fetch_data->requested_ref = (ref != NULL) ? ostree_collection_ref_dup (ref) : NULL;
           fetch_data->n_retries_remaining = pull_data->n_network_retries;
+          fetch_data->is_delta_target_commit_object = TRUE;
 
           ostree_repo_write_metadata_async (pull_data->repo, OSTREE_OBJECT_TYPE_COMMIT, to_checksum,
                                             to_commit,
